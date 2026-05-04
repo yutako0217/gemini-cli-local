@@ -18,7 +18,7 @@ import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
 import { DefaultDark } from '../ui/themes/default.js';
 
-export const SETTINGS_DIRECTORY_NAME = '.gemini';
+export const SETTINGS_DIRECTORY_NAME = '.gemini-cli';
 export const USER_SETTINGS_DIR = path.join(homedir(), SETTINGS_DIRECTORY_NAME);
 export const USER_SETTINGS_PATH = path.join(USER_SETTINGS_DIR, 'settings.json');
 
@@ -64,6 +64,18 @@ export interface Settings {
   // UI setting. Does not display the ANSI-controlled terminal title.
   hideWindowTitle?: boolean;
 
+  // Security settings (for nested auth type)
+  security?: {
+    auth?: {
+      selectedType?: string;
+    };
+  };
+
+  // Model settings
+  model?: {
+    defaultModel?: string;
+  };
+
   // Add other settings here.
 }
 
@@ -99,10 +111,22 @@ export class LoadedSettings {
   }
 
   private computeMergedSettings(): Settings {
-    return {
+    const merged = {
       ...this.user.settings,
       ...this.workspace.settings,
     };
+
+    // Handle nested security.auth.selectedType -> selectedAuthType mapping
+    if (merged.security?.auth?.selectedType && !merged.selectedAuthType) {
+      let authType = merged.security.auth.selectedType;
+      // Map legacy 'ollama' to 'local-llm'
+      if (authType === 'ollama') {
+        authType = 'local-llm';
+      }
+      merged.selectedAuthType = authType as AuthType;
+    }
+
+    return merged;
   }
 
   forScope(scope: SettingScope): SettingsFile {
